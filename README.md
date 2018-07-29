@@ -2,7 +2,7 @@
 
 Permet la consultation des bilans au format JSON
 
-## Dépendances
+## Dépendances
 
 gorncs-api dépend de:
 - [Gin Web Framework](http://github.com/gin-gonic/gin)
