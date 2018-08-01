@@ -1,13 +1,15 @@
-# gorncs-api : une API pour le Registre National du Commerce et des Sociétés
+# gorncs-api 
+
+API pour le Registre National du Commerce et des Sociétés
 
 Permet la consultation des bilans au format JSON
 
 ## Dépendances
 
 gorncs-api dépend de:
+
 - [Gin Web Framework](http://github.com/gin-gonic/gin)
 - [gorncs](http://github.com/chrnin/gorncs)
-
 
 ## gorncs-api est un élément de la suite gorncs
 
