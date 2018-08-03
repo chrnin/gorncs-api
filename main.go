@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gin-contrib/cors"
+
 	"github.com/chrnin/gorncs"
 	"github.com/gin-gonic/gin"
 )
@@ -11,12 +13,19 @@ import (
 func main() {
 	r := gin.Default()
 
-	fmt.Println(os.Args[1])
+	r.Use(cors.Default())
+
 	r.GET("/", greetings)
 	r.GET("/config", config)
 	r.GET("/reindex", reindex)
 	r.GET("/getBilan/:siren", getBilan)
-	r.Run() // listen and serve on 0.0.0.0:8080
+
+	r.Run(":3000") // listen and serve on 0.0.0.0:8080
+}
+
+type query struct {
+	Siren string `json:"siren"`
+	Path  string `json:"path"`
 }
 
 func config(c *gin.Context) {
@@ -47,7 +56,8 @@ func reindex(c *gin.Context) {
 }
 func getBilan(c *gin.Context) {
 	siren := c.Params.ByName("siren")
-	bilan, err := gorncs.GetBilan(os.Args[1], siren)
+	bilan, err := gorncs.GetBilan("../../inpiRoot", siren)
+
 	if err != nil {
 		fmt.Println(err)
 		c.JSON(500, err)
