@@ -24,16 +24,17 @@ Pour l'utiliser: `http :3000/012345678` vous fournira les bilans contenus dans l
 Afin de peupler la base de données, il faut cloner le dépot [RNCS de l'INPI](https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs).
 
 ```
-  gorncs-api -help
-    Usage of ./gorncs-api:
+Usage of ./gorncs-api:
   -C string
         MongoDB collection (default "bilan")
   -DB string
         MongoDB database (default "inpi")
+  -bind string
+        Listen and serve on (default "127.0.0.1:3000")
   -dial string
         MongoDB dial URL (default "localhost")
   -path string
         RNCS root path (default ".")
   -scanner
-        Scan and import the root directory
+        Scan and import everything below the root path, doesn't run API endpoint
 ```

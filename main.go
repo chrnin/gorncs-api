@@ -18,6 +18,7 @@ var db string
 var collection string
 var path string
 var scanner bool
+var bind string
 
 func init() {
 
@@ -25,7 +26,8 @@ func init() {
 	flag.StringVar(&db, "DB", "inpi", "MongoDB database")
 	flag.StringVar(&collection, "C", "bilan", "MongoDB collection")
 	flag.StringVar(&path, "path", ".", "RNCS root path")
-	flag.BoolVar(&scanner, "scanner", false, "Scan and import the root directory")
+	flag.StringVar(&bind, "bind", "127.0.0.1:3000", "Listen and serve on")
+	flag.BoolVar(&scanner, "scanner", false, "Scan and import everything below the root path, doesn't run API endpoint")
 }
 
 func main() {
@@ -33,10 +35,11 @@ func main() {
 	if scanner {
 		scan()
 	} else {
+		gin.SetMode(gin.ReleaseMode)
 		r := gin.Default()
 		r.Use(cors.Default())
 		r.GET("/:siren", search)
-		r.Run(":3000") // listen and serve on 0.0.0.0:8080
+		r.Run(bind)
 	}
 
 }
