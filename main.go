@@ -1,67 +1,79 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"os"
+
+	"github.com/chrnin/gorncs"
+	"github.com/globalsign/mgo"
+	"github.com/globalsign/mgo/bson"
 
 	"github.com/gin-contrib/cors"
 
-	"github.com/chrnin/gorncs"
 	"github.com/gin-gonic/gin"
 )
 
+var dial string
+var db string
+var collection string
+var path string
+var scanner bool
+
+func init() {
+
+	flag.StringVar(&dial, "dial", "localhost", "MongoDB dial URL")
+	flag.StringVar(&db, "DB", "inpi", "MongoDB database")
+	flag.StringVar(&collection, "C", "bilan", "MongoDB collection")
+	flag.StringVar(&path, "path", ".", "RNCS root path")
+	flag.BoolVar(&scanner, "scanner", false, "Scan and import the root directory")
+}
+
 func main() {
-	r := gin.Default()
+	flag.Parse()
+	if scanner {
+		scan()
+	} else {
+		r := gin.Default()
+		r.Use(cors.Default())
+		r.GET("/:siren", search)
+		r.Run(":3000") // listen and serve on 0.0.0.0:8080
+	}
 
-	r.Use(cors.Default())
-
-	r.GET("/", greetings)
-	r.GET("/config", config)
-	r.GET("/reindex", reindex)
-	r.GET("/getBilan/:siren", getBilan)
-
-	r.Run(":3000") // listen and serve on 0.0.0.0:8080
 }
 
 type query struct {
 	Siren string `json:"siren"`
-	Path  string `json:"path"`
 }
 
-func config(c *gin.Context) {
-	version := "0.1a"
-	dataPath := os.Args[1]
-	workingDirectory, _ := os.Getwd()
-	response := gin.H{
-		"path":              dataPath,
-		"version":           version,
-		"working directory": workingDirectory,
-	}
-	c.JSON(200, response)
-}
-
-func greetings(c *gin.Context) {
-	c.JSON(200, gin.H{
-		"greetings": "Votre installation Fonctionne",
-	})
-}
-
-func reindex(c *gin.Context) {
-	err := gorncs.Index(os.Args[1])
+func search(c *gin.Context) {
+	session, err := mgo.Dial(dial)
 	if err != nil {
-		c.JSON(500, err)
-	} else {
-		c.JSON(200, "done")
+		c.JSON(500, err.Error())
 	}
-}
-func getBilan(c *gin.Context) {
+	db := session.DB(db)
+	var bilans []interface{}
+
 	siren := c.Params.ByName("siren")
-	bilan, err := gorncs.GetBilan("../../inpiRoot", siren)
 
+	db.C(collection).Find(bson.M{"_id.siren": siren}).All(&bilans)
+
+	c.JSON(200, bilans)
+}
+
+func scan() {
+	session, err := mgo.Dial(dial)
 	if err != nil {
-		fmt.Println(err)
-		c.JSON(500, err)
-	} else {
-		c.JSON(200, bilan)
+		panic(err)
 	}
+	db := session.DB(db)
+
+	var bs []interface{}
+	for bilan := range gorncs.BilanWorker(path) {
+		_, err := db.C(collection).Upsert(bson.M{"_id": bilan.ID}, bilan)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
+	db.C(collection).Insert(bs...)
+
 }
