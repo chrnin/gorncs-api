@@ -17,7 +17,7 @@ Installer MongoDB par votre moyen préféré.
 
 `go get github.com/chrnin/gorncs-api`
 
-## Utilisation
+## Utilisation 
 Lancé sans argument, gorncs-api ouvre un point d'appel sur l'interface localhost, port 3000.  
 Pour l'utiliser: `http :3000/012345678` vous fournira les bilans contenus dans la base mongodb `inpi` et la collection `bilan`
 
@@ -37,4 +37,3 @@ Afin de peupler la base de données, il faut cloner le dépot [RNCS de l'INPI](h
   -scanner
         Scan and import the root directory
 ```
-// TODO 
