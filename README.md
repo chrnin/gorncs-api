@@ -2,7 +2,7 @@
 
 API pour le Registre National du Commerce et des Sociétés
 
-Permet la consultation des bilans au format JSON
+Permet la consultation des bilans et comptes de résultat au format JSON
 
 ## Dépendances
 
@@ -10,20 +10,31 @@ gorncs-api dépend de:
 
 - [Gin Web Framework](http://github.com/gin-gonic/gin)
 - [gorncs](http://github.com/chrnin/gorncs)
-
-## gorncs-api est un élément de la suite gorncs
-
-Toutefois, rien ne vous empêche de l'utiliser directement. Voici les autres modules:
-
-- gorncs: un module pour maintenir et exploiter le dépôt de fichiers INPI facilement
-- gorncs-api: une api pour accéder au registre au format JSON
-- gorncs-cli: un outil en ligne de commande pour exploiter GoRNCS
-- rncs-ui: une interface utilisateur pour consulter le registre
+- [mongodb](https://www.mongodb.com/)
 
 ## Installer GoRNCS-cli
+Installer MongoDB par votre moyen préféré.  
 
 `go get github.com/chrnin/gorncs-api`
 
 ## Utilisation
+Lancé sans argument, gorncs-api ouvre un point d'appel sur l'interface localhost, port 3000.  
+Pour l'utiliser: `http :3000/012345678` vous fournira les bilans contenus dans la base mongodb `inpi` et la collection `bilan`
 
+Afin de peupler la base de données, il faut cloner le dépot [RNCS de l'INPI](https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs).
+
+```
+  gorncs-api -help
+    Usage of ./gorncs-api:
+  -C string
+        MongoDB collection (default "bilan")
+  -DB string
+        MongoDB database (default "inpi")
+  -dial string
+        MongoDB dial URL (default "localhost")
+  -path string
+        RNCS root path (default ".")
+  -scanner
+        Scan and import the root directory
+```
 // TODO 
