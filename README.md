@@ -19,7 +19,7 @@ Installer MongoDB par votre moyen préféré.
 
 ## Utilisation 
 Lancé sans argument, gorncs-api ouvre un point d'appel sur l'interface localhost, port 3000.  
-Pour l'utiliser: `http :3000/012345678` vous fournira les bilans contenus dans la base mongodb `inpi` et la collection `bilan`
+Pour l'utiliser: `http :3000/012345678` vous fournira les bilans du siren 012345678 contenus dans la base mongodb `inpi` et la collection `bilan`
 
 Afin de peupler la base de données, il faut cloner le dépot [RNCS de l'INPI](https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs).
 
