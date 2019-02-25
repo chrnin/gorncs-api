@@ -10,25 +10,21 @@ gorncs-api dépend de:
 
 - [Gin Web Framework](http://github.com/gin-gonic/gin)
 - [gorncs](http://github.com/chrnin/gorncs)
-- [mongodb](https://www.mongodb.com/)
+- [go-sqlite3](http://github.com/mattn/go-sqlite3)
 
-## Installer GoRNCS-cli
-Installer MongoDB par votre moyen préféré.  
-
+## Installer gorncs-api
 `go get github.com/chrnin/gorncs-api`
 
 ## Utilisation 
 Lancé sans argument, gorncs-api ouvre un point d'appel sur l'interface localhost, port 3000.  
-Pour l'utiliser: `http :3000/012345678` vous fournira les bilans du siren 012345678 contenus dans la base mongodb `inpi` et la collection `bilan`
+Pour l'utiliser: `http :3000/012345678` vous fournira les bilans du siren 012345678 contenus dans la base sqlite
 
 Afin de peupler la base de données, il faut cloner le dépot [RNCS de l'INPI](https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs).
 
 ```
 Usage of ./gorncs-api:
-  -C string
-        MongoDB collection (default "bilan")
   -DB string
-        MongoDB database (default "inpi")
+        sqlite3 database file
   -bind string
         Listen and serve on (default "127.0.0.1:3000")
   -dial string
