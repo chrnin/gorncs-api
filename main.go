@@ -192,7 +192,7 @@ func insertBilan(database *sql.DB, bilan gorncs.Bilan) error {
 
 func scan() {
 	database, err := sql.Open("sqlite3", db)
-	sqlite3.
+
 	if err != nil {
 		panic(err)
 	}
