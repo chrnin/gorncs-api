@@ -2,11 +2,8 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"flag"
 	"fmt"
-	"sort"
-	"strconv"
 
 	"github.com/chrnin/gorncs"
 	"github.com/globalsign/mgo"
@@ -72,34 +69,6 @@ func search(c *gin.Context) {
 	c.JSON(200, bilans)
 }
 
-func getPostes() []string {
-	var dbSchema = make(map[string]struct{})
-	for codePoste := range gorncs.Kb {
-		for codeBilan := range gorncs.Kb[codePoste] {
-			key := gorncs.Key{CodeBilan: codeBilan, CodePoste: codePoste}
-			schema, _ := gorncs.GetSchema(key)
-			if schema[0] != "" {
-				dbSchema[schema[0]] = struct{}{}
-			}
-			if schema[1] != "" {
-				dbSchema[schema[1]] = struct{}{}
-			}
-			if schema[2] != "" {
-				dbSchema[schema[2]] = struct{}{}
-			}
-			if schema[3] != "" {
-				dbSchema[schema[3]] = struct{}{}
-			}
-		}
-	}
-	var postes []string
-	for k := range dbSchema {
-		postes = append(postes, k)
-	}
-	sort.Slice(postes, func(a int, b int) bool { return postes[a] < postes[b] })
-	return postes
-}
-
 func initDB() {
 	createTableQuery := `create table bilan (
 		id integer primary key,
@@ -121,7 +90,7 @@ func initDB() {
 		denomination text,
 		adresse text,
 		rapport_integration text`
-	for _, p := range getPostes() {
+	for _, p := range gorncs.Postes {
 		createTableQuery = createTableQuery + `,
 		` + p + ` integer`
 	}
@@ -138,68 +107,28 @@ func initDB() {
 	}
 }
 
-var insert sql.Stmt
-
-func insertBilan(database *sql.DB, bilan gorncs.Bilan) error {
-	requete := `insert into bilan (
-		siren, date_cloture_exercice, code_greffe, num_depot, num_gestion, code_activite, date_cloture_exercice_precedent,
-		duree_exercice, duree_exercice_precedent,	date_depot, code_motif, code_type_bilan, code_devise, code_origine_devise,
-		code_confidentialite, denomination, adresse, rapport_integration
-		`
-	values := `) values (
-		$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18`
-
-	// Siren                        string          `json:"siren" bson:"siren"`
-	// DateClotureExercice          time.Time       `json:"dateClotureExercice" bson:"dateClotureExercice"`
-	// CodeGreffe                   string          `json:"codeGreffe" bson:"codeGreffe"`
-	// NumDepot                     string          `json:"numDepot" bson:"numDepot"`
-	// NumGestion                   string          `json:"numGestion" bson:"numGestion"`
-	// CodeActivite                 string          `json:"codeActivite" bson:"codeActivite"`
-	// DateClotureExercicePrecedent time.Time       `json:"dateClotureExercicePrecedent" bson:"dateClotureExercicePrecedent"`
-	// DureeExercice                string          `json:"dureeExercice" bson:"dureeExercice"`
-	// DureeExercicePrecedent       string          `json:"dureeExercicePrecedent" bson:"dureeExercicePrecedent"`
-	// DateDepot                    time.Time       `json:"dateDepot" bson:"dateDepot"`
-	// CodeMotif                    string          `json:"codeMotif" bson:"codeMotif"`
-	// CodeTypeBilan                string          `json:"codeTypeBilan" bson:"codeTypeBilan"`
-	// CodeDevise                   string          `json:"codeDevise" bson:"codeDevise"`
-	// CodeOrigineDevise            string          `json:"codeOrigineDevise" bson:"codeOrigineDevise"`
-	// CodeConfidentialite          string          `json:"codeConfidentialite" bson:"codeConfidentialite"`
-	// Denomination                 string          `json:"denomination" bson:"denomination"`
-	// Adresse                      string          `json:"adresse" bson:"adresse"`
-	// XMLSource                    string          `json:"XMLSource" bson:"XMLSource"`
-	if bilan.Siren == "" {
-		fmt.Println("Siren non renseigné, xml source: " + bilan.XMLSource)
-		return nil
-	}
-
-	if len(bilan.Lignes) > 0 {
-		for k, v := range bilan.Lignes {
-			requete = requete + ", " + k
-			values = values + ", " + strconv.Itoa(*v)
-		}
-
-		requete = requete[:len(requete)]
-		rapportIntegration, _ := json.Marshal(bilan.Report)
-		values = values[:len(values)] + ");"
-		_, err := database.Exec(requete+values, bilan.Siren, bilan.DateClotureExercice, bilan.CodeGreffe, bilan.NumDepot,
-			bilan.NumGestion, bilan.CodeActivite, bilan.DateClotureExercicePrecedent, bilan.DureeExercice, bilan.DureeExercicePrecedent,
-			bilan.DateDepot, bilan.CodeMotif, bilan.CodeTypeBilan, bilan.CodeDevise, bilan.CodeOrigineDevise, bilan.CodeConfidentialite,
-			bilan.Denomination, bilan.Adresse, string(rapportIntegration))
-		return err
-	}
-	return nil
-}
-
 func scan() {
 	database, err := sql.Open("sqlite3", db)
-
 	if err != nil {
 		panic(err)
 	}
-	for bilan := range gorncs.BilanWorker(path) {
-		err := insertBilan(database, bilan)
-		if err != nil {
-			panic(err)
-		}
+	_, err = database.Exec("PRAGMA journal_mode = OFF")
+	_, err = database.Exec("PRAGMA synchronous = OFF")
+
+	fmt.Println(err)
+	queryString := gorncs.GetQueryString()
+
+	tx, _ := database.Begin()
+	stmt, err := tx.Prepare(queryString)
+	if err != nil {
+		panic(err)
 	}
+
+	for bilan := range gorncs.BilanWorker(path) {
+		stmt.Exec(bilan.ToQueryParams()...)
+	}
+
+	stmt.Close()
+	tx.Commit()
+	database.Close()
 }
