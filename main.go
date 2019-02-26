@@ -4,10 +4,10 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"log"
+	"strconv"
 
 	"github.com/chrnin/gorncs"
-	"github.com/globalsign/mgo"
-	"github.com/globalsign/mgo/bson"
 
 	"github.com/gin-contrib/cors"
 
@@ -16,20 +16,25 @@ import (
 	_ "github.com/mattn/go-sqlite3" // sqlite3 driver
 )
 
-var dial string
 var db string
-var collection string
 var path string
 var scanner bool
 var initdb bool
 var bind string
+var verbose bool
+var limit int
+var siren string
+var database *sql.DB
 
 func init() {
-	flag.StringVar(&db, "DB", "./bilan.db", "sqlite3 database path")
-	flag.StringVar(&path, "path", ".", "RNCS root path")
-	flag.StringVar(&bind, "bind", "127.0.0.1:3000", "Listen and serve on")
-	flag.BoolVar(&scanner, "scanner", false, "Scan and import everything below the root path, doesn't run API endpoint")
-	flag.BoolVar(&initdb, "initdb", false, "initialize a fresh new sqlite database")
+	flag.StringVar(&db, "DB", "./bilan.db", "chemin de la base sqlite3")
+	flag.StringVar(&path, "path", ".", "chemin où sont stockés les fichiers RNCS")
+	flag.StringVar(&bind, "bind", "127.0.0.1:3000", "port d'écoute de l'api")
+	flag.BoolVar(&scanner, "scan", false, "importer les fichiers")
+	flag.BoolVar(&initdb, "initdb", false, "créer une nouvelle base sqlite")
+	flag.BoolVar(&verbose, "verbose", false, "afficher les informations d'importation")
+	flag.IntVar(&limit, "limit", 0, "limiter l'import à n bilans")
+	flag.StringVar(&siren, "siren", "", "restreint l'importation au siren")
 }
 
 func main() {
@@ -39,8 +44,14 @@ func main() {
 	} else if initdb {
 		initDB()
 	} else {
-		fmt.Println("gorncs-api listening on: " + bind)
-		fmt.Println("for more information: gorncs-api --help")
+		var err error
+		database, err = sql.Open("sqlite3", db)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println("gorncs-api écoute " + bind)
+		fmt.Println("Pour plus d'information: gorncs-api --help")
 		gin.SetMode(gin.ReleaseMode)
 		r := gin.Default()
 		r.Use(cors.Default())
@@ -55,56 +66,73 @@ type query struct {
 }
 
 func search(c *gin.Context) {
-	session, err := mgo.Dial(dial)
-	if err != nil {
-		c.JSON(500, err.Error())
-	}
-	db := session.DB(db)
-	var bilans []interface{}
-
 	siren := c.Params.ByName("siren")
 
-	db.C(collection).Find(bson.M{"_id.siren": siren}).All(&bilans)
+	rows, err := database.Query("select * from bilan where siren = $1", siren)
+	cols, _ := rows.Columns()
 
-	c.JSON(200, bilans)
+	if err != nil {
+		c.JSON(500, "wtf")
+	}
+
+	var result []interface{}
+
+	for rows.Next() {
+		// Create a slice of interface{}'s to represent each column,
+		// and a second slice to contain pointers to each item in the columns slice.
+		columns := make([]interface{}, len(cols))
+		columnPointers := make([]interface{}, len(cols))
+		for i := range columns {
+			columnPointers[i] = &columns[i]
+		}
+
+		// Scan the result into the column pointers...
+		if err := rows.Scan(columnPointers...); err != nil {
+			fmt.Println(err)
+		}
+
+		// Create our map, and retrieve the value for each column from the pointers slice,
+		// storing it in the map with the name of the column as the key.
+		m := make(map[string]interface{})
+		for i, colName := range cols {
+			val := columnPointers[i].(*interface{})
+			if *val != nil {
+				m[colName] = *val
+			}
+		}
+
+		// Outputs: map[columnName:value columnName2:value2 columnName3:value3 ...]
+		result = append(result, m)
+	}
+	c.JSON(200, result)
 }
 
 func initDB() {
-	createTableQuery := `create table bilan (
-		id integer primary key,
-		siren text,
-		date_cloture_exercice datetime,
-		code_greffe text,
-		num_depot text,
-		num_gestion text,
-		code_activite text,
-		date_cloture_exercice_precedent datetime,
-		duree_exercice text,
-		duree_exercice_precedent text,
-		date_depot datetime,
-		code_motif text,
-		code_type_bilan text,
-		code_devise text,
-		code_origine_devise text,
-		code_confidentialite text,
-		denomination text,
-		adresse text,
-		rapport_integration text`
-	for _, p := range gorncs.Postes {
-		createTableQuery = createTableQuery + `,
-		` + p + ` integer`
-	}
-	createTableQuery = createTableQuery + ");"
+	log.Print("initialisation de la base de données Sqlite pour gorncs: " + db)
 	database, err := sql.Open("sqlite3", db)
 	if err != nil {
-		panic(err)
+		log.Fatal("Erreur d'accès au fichier " + db + ": " + err.Error())
 	}
+
+	createTableQuery := gorncs.GetCreateTableQuery()
 	_, err = database.Exec(createTableQuery)
 	if err != nil {
-		fmt.Println("Erreur lors de la création de la table: " + err.Error())
+		log.Fatal("interruption lors de la création de la table: " + err.Error())
 	} else {
-		fmt.Println("Table bilan créée dans la base " + db)
+		log.Print("creation de la table bilan (" + strconv.Itoa(len(gorncs.Postes)) + " champs): ok")
 	}
+	_, err = database.Exec("create unique index idx_lookup_bilan on bilan (nom_fichier, siren, date_cloture_exercice, code_activite, date_depot, denomination);")
+	if err != nil {
+		log.Print("creation index: " + err.Error())
+	} else {
+		log.Print("creation index: ok")
+	}
+
+	// log.Print("creation vue synthetique: not yet implemented")
+	// log.Print("creation vue actif: not yet implemented")
+	// log.Print("creation vue passif: not yet implemented")
+	// log.Print("creation vue compte_de_resultat: not yet implemented")
+	// log.Print("creation vue ratio: not yet implemented")
 }
 
 func scan() {
@@ -112,10 +140,11 @@ func scan() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = database.Exec("PRAGMA journal_mode = OFF")
-	_, err = database.Exec("PRAGMA synchronous = OFF")
 
-	fmt.Println(err)
+	// options d'optimisation dangereuses
+	// _, err = database.Exec("PRAGMA journal_mode = OFF")
+	// _, err = database.Exec("PRAGMA synchronous = OFF")
+
 	queryString := gorncs.GetQueryString()
 
 	tx, _ := database.Begin()
@@ -124,11 +153,34 @@ func scan() {
 		panic(err)
 	}
 
+	n := 0
 	for bilan := range gorncs.BilanWorker(path) {
-		stmt.Exec(bilan.ToQueryParams()...)
+		if bilan.Siren == siren || siren == "" {
+			if bilan.Siren != "" && len(bilan.Lignes) > 0 {
+				_, err := stmt.Exec(bilan.ToQueryParams()...)
+				if err != nil {
+
+					if verbose {
+						log.Print("probleme à l'insert de " + bilan.NomFichier + ": " + err.Error())
+					}
+				} else {
+					n++
+				}
+				if verbose {
+					log.Print("scan: " + bilan.NomFichier)
+				}
+			} else {
+				log.Print("aucune donnée: " + bilan.NomFichier)
+			}
+		}
+		if n == limit && limit != 0 {
+			break
+		}
+
 	}
 
 	stmt.Close()
 	tx.Commit()
 	database.Close()
+	log.Print("Bilans importés: " + strconv.Itoa(n))
 }
