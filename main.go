@@ -7,7 +7,7 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/chrnin/gorncs"
+	gorncs "./lib"
 
 	"github.com/gin-contrib/cors"
 
@@ -78,21 +78,16 @@ func search(c *gin.Context) {
 	var result []interface{}
 
 	for rows.Next() {
-		// Create a slice of interface{}'s to represent each column,
-		// and a second slice to contain pointers to each item in the columns slice.
 		columns := make([]interface{}, len(cols))
 		columnPointers := make([]interface{}, len(cols))
 		for i := range columns {
 			columnPointers[i] = &columns[i]
 		}
 
-		// Scan the result into the column pointers...
 		if err := rows.Scan(columnPointers...); err != nil {
 			fmt.Println(err)
 		}
 
-		// Create our map, and retrieve the value for each column from the pointers slice,
-		// storing it in the map with the name of the column as the key.
 		m := make(map[string]interface{})
 		for i, colName := range cols {
 			val := columnPointers[i].(*interface{})
@@ -101,7 +96,6 @@ func search(c *gin.Context) {
 			}
 		}
 
-		// Outputs: map[columnName:value columnName2:value2 columnName3:value3 ...]
 		result = append(result, m)
 	}
 	c.JSON(200, result)
@@ -161,7 +155,11 @@ func scan() {
 				if err != nil {
 
 					if verbose {
-						log.Print("probleme à l'insert de " + bilan.NomFichier + ": " + err.Error())
+						if err.Error()[0:6] == "UNIQUE" {
+							log.Print("Bilan déjà présent " + bilan.NomFichier)
+						} else {
+							log.Print("probleme à l'insert de " + bilan.NomFichier + ": " + err.Error())
+						}
 					}
 				} else {
 					n++
@@ -170,7 +168,9 @@ func scan() {
 					log.Print("scan: " + bilan.NomFichier)
 				}
 			} else {
-				log.Print("aucune donnée: " + bilan.NomFichier)
+				if verbose {
+					log.Print("aucune donnée: " + bilan.NomFichier)
+				}
 			}
 		}
 		if n == limit && limit != 0 {
