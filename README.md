@@ -18,11 +18,12 @@ gorncs-api dépend de:
 
 ## Utilisation 
 Lancé sans argument, gorncs-api ouvre un point d'appel sur 127.0.0.1:3000.  
-Pour l'utiliser: `http :3000/012345678` vous fournira les bilans du siren 012345678 contenus dans la base sqlite.
 
 Afin de peupler la base de données, il faut cloner le dépot [RNCS de l'INPI](https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs).
 
 Si le même chemin est configuré pour l'import, les doublons ne seront pas intégrés, il est donc possible de lancer plusieurs fois la même arborescence.
+
+Avant de démarrer l'import, il faut initialiser le schéma de la base avec -initdb.
 
 ```
 Usage of ./gorncs-api:
@@ -43,4 +44,19 @@ Usage of ./gorncs-api:
   -verbose
     	afficher les informations d'importation
 
+```
+
+## Appel de l'api
+```
+$ http :3000/bilan/012345678
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Wed, 27 Feb 2019 14:49:07 GMT
+Transfer-Encoding: chunked
+
+[
+    {
+        "actif_autres_creances_brut": xxxxx,
+        "actif_autres_creances_net": xxxxx,
+        ...
 ```

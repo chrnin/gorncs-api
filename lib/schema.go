@@ -84,9 +84,8 @@ type Values struct {
 	M4 *int `json:"valeur_m4"`
 }
 
-// Ligne de bilan
-
-// Bilan = Lignes + Descriptif
+// Bilan objet restructurant les données d'un bilan au format XML rncs en format maison.
+// Les lignes sont une map identifiées par les postes fournis dans la variable Kb
 type Bilan struct {
 	Siren                        string          `json:"siren" bson:"siren"`
 	DateClotureExercice          time.Time       `json:"dateClotureExercice" bson:"dateClotureExercice"`
@@ -111,9 +110,10 @@ type Bilan struct {
 	Lignes                       map[string]*int `json:"lignes" bson:"lignes"`
 }
 
-// Postes computes field sorted list from Kb
+// Postes liste des postes extrats de la variable Kb
 var Postes = getPostes()
 
+// getPostes retourne la liste des postes extraits de la variable Kb
 func getPostes() []string {
 	var dbSchema = make(map[string]struct{})
 	for codePoste := range Kb {
@@ -142,6 +142,8 @@ func getPostes() []string {
 	return postes
 }
 
+// toNullString produit une variable sql.NullString à partir d'une string.
+// "" devient NULL.
 func toNullString(s string) sql.NullString {
 	if s != "" {
 		return sql.NullString{
@@ -263,6 +265,8 @@ func GetSchema(key Key) ([4]string, error) {
 			}
 			return schema, nil
 		}
+		// certains bilans ont un type complet mais des lignes issues du type simplifié
+		// ci-dessous workaround pour prendre en compte ces lignes
 		s := poste["S"]
 		var schema [4]string
 		if s[2] != "" {
@@ -279,8 +283,8 @@ func GetSchema(key Key) ([4]string, error) {
 		}
 		return schema, nil
 	}
-	return [4]string{"", "", "", ""}, errors.New("schema introuvable pour le type de bilan")
 
+	return [4]string{"", "", "", ""}, errors.New("schema introuvable pour le type de bilan")
 }
 
 // KB type qui contient le schema cible
@@ -298,7 +302,8 @@ func GetSchema(key Key) ([4]string, error) {
 // }
 type KB map[string]map[string][6]string
 
-// Kb schema cible
+// Kb schema cible. Les postes du bilan sont calculés à partir de cette variable.
+// le champ M3 d'une ligne AA d'un bilan de type complet deviendra actif_capital_souscrit_non_appele_net
 var Kb = KB{
 	"AA": {
 		"C": {
@@ -1844,16 +1849,16 @@ var Kb = KB{
 		"C": {
 			"03",
 			"compte_de_resultat",
-			"ventes_de_marchandises",
-			"ventes_de_marchandises_n1",
+			"ventes_de_marchandises_france",
+			"ventes_de_marchandises_export",
 			"ventes_de_marchandises_total",
 			"ventes_de_marchandises_total_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
-			"ventes_de_marchandises",
-			"ventes_de_marchandises_n1",
+			"ventes_de_marchandises_france",
+			"ventes_de_marchandises_export",
 			"ventes_de_marchandises_total",
 			"ventes_de_marchandises_total_n1",
 		},
@@ -1862,16 +1867,16 @@ var Kb = KB{
 		"C": {
 			"03",
 			"compte_de_resultat",
-			"production_vendue_biens",
-			"production_vendue_biens_n1",
+			"production_vendue_biens_france",
+			"production_vendue_biens_export",
 			"production_vendue_biens_total",
 			"production_vendue_biens_total_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
-			"production_vendue_biens",
-			"production_vendue_biens_n1",
+			"production_vendue_biens_france",
+			"production_vendue_biens_export",
 			"production_vendue_biens_total",
 			"production_vendue_biens_total_n1",
 		},
@@ -1880,16 +1885,16 @@ var Kb = KB{
 		"C": {
 			"03",
 			"compte_de_resultat",
-			"production_vendue_services",
-			"production_vendue_services_n1",
+			"production_vendue_services_france",
+			"production_vendue_services_export",
 			"production_vendue_services_total",
 			"production_vendue_services_total_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
-			"production_vendue_services",
-			"production_vendue_services_n1",
+			"production_vendue_services_france",
+			"production_vendue_services_export",
 			"production_vendue_services_total",
 			"production_vendue_services_total_n1",
 		},
@@ -1898,16 +1903,16 @@ var Kb = KB{
 		"C": {
 			"03",
 			"compte_de_resultat",
-			"chiffres_d_affaires_nets",
-			"chiffres_d_affaires_nets_n1",
+			"chiffres_d_affaires_nets_france",
+			"chiffres_d_affaires_nets_export",
 			"chiffres_d_affaires_nets_total",
 			"chiffres_d_affaires_nets_total_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
-			"chiffres_d_affaires_nets",
-			"chiffres_d_affaires_nets_n1",
+			"chiffres_d_affaires_nets_france",
+			"chiffres_d_affaires_nets_export",
 			"chiffres_d_affaires_nets_total",
 			"chiffres_d_affaires_nets_total_n1",
 		},
@@ -1918,16 +1923,16 @@ var Kb = KB{
 			"compte_de_resultat",
 			"",
 			"",
-			"production_stockee_total",
-			"production_stockee_total_n1",
+			"production_stockee",
+			"production_stockee_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
 			"",
 			"",
-			"production_stockee_total",
-			"production_stockee_total_n1",
+			"production_stockee",
+			"production_stockee_n1",
 		},
 	},
 	"FN": {
@@ -2152,16 +2157,16 @@ var Kb = KB{
 			"compte_de_resultat",
 			"",
 			"",
-			"charges_sociales_total",
-			"charges_sociales_total_total_n1",
+			"charges_sociales",
+			"charges_sociales_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
 			"",
 			"",
-			"charges_sociales_total",
-			"charges_sociales_total_total_n1",
+			"charges_sociales",
+			"charges_sociales_n1",
 		},
 	},
 	"GA": {

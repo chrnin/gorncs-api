@@ -118,6 +118,7 @@ func deepUnzip(zipFileReader sourceFile) chan sourceFile {
 }
 
 // BilanWorker produit tous les bilans contenus dans une arborescence
+// l'exploration de l'arborescence se fait avec une profondeur arbitraire et traite également les zip imbriqués
 func BilanWorker(basePath string) chan Bilan {
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {

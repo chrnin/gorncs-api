@@ -55,10 +55,17 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 		r := gin.Default()
 		r.Use(cors.Default())
-		r.GET("/:siren", search)
+		r.GET("/bilan/:siren", search)
+		r.GET("/fields", fields)
+
 		r.Run(bind)
 	}
+}
 
+func fields(c *gin.Context) {
+	for _, p := range gorncs.Postes {
+		fmt.Println(p)
+	}
 }
 
 type query struct {
