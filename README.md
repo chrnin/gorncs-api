@@ -23,7 +23,10 @@ gorncs-api dépend de:
 
 ## Installer gorncs-api
 - Installer libcurl4-openssl-dev
+- Installer sqlite3
 - `go get github.com/signaux-faibles/gorncs-api`
+
+Il faut s'attendre à un temps de compilation assez important du fait de la compilation de go-sqlite3.
 
 ## Usage
 ```
@@ -51,7 +54,6 @@ Usage of ./gorncs-api:
     	utilisateur FTPS RNCS/inpi
   -verbose
     	afficher les informations d'importation
-
 ```
 
 ### Première synchronisation
@@ -84,15 +86,14 @@ Une fois le dépot initialisé et la base de données en place, il est possible 
 L'INPI a fixé un quota de téléchargement de 1Go/jour, il faut donc s'attendre à plusieurs jours de téléchargement important au départ.  
 L'INPI publie les nouveaux bilans à raison d'un fichier de quelques Mo par jour, une planification à 24 heures des deux commandes suivantes permet d'obtenir les mises à jour en suivant leur rythme de publication.
 ```
-$ ~/go/bin/gorncs-api -download -user secretUser -password secretPassword -path inpi
-$ ~/go/bin/gorncs-api -scan -path inpi
+$ ~/go/bin/gorncs-api -download -user secretUser -password secretPassword -path /foo/inpi
+$ ~/go/bin/gorncs-api -scan -path /foo/inpi
 ```
 
 ### Gestion des erreurs
 gorncs-api valide le md5 des fichiers téléchargés, en cas de différence, les fichiers sont supprimés et seront re-téléchargés à la tentative suivante.  
 
 Cette vérification survient également pour tous les fichiers à chaque synchronisation de sorte que si un fichier subit une corruption de ses données il sera supprimé et re-téléchargé durant la synchronisation.  
-
 Chaque tentative de synchronisation ne procède qu'à un seul essais de téléchargement de fichier par synchronisation pour éviter des blocages liés à une corruption venant directement du dépot inpi. Les fichiers ne correspondant pas à leur md5 ne sont pas conservés.
 
 Si une erreur de téléchargement survient lors de la synchronisation, celle-ci est immédiatement arrétée étant entendu que dans la majorité des cas il s'agit du quota en volume qui est dépassé.
@@ -107,6 +108,8 @@ gorncs-api écoute 127.0.0.1:3000
 Pour plus d'information: gorncs-api --help
 ```
 ### Utilisation
+Ce microservice prend un numéro siren en paramètre dans l'URL et retourne l'ensemble des bilans dans un tableau JSON où chaque élément est un objet dont les clés font référence aux notions que l'on retrouve sur les formulaires de déclaration fiscale de la DGFIP. (2030-sd, 2031-sd etc.)
+
 ```
 $ http :3000/bilan/012345678
 HTTP/1.1 200 OK
@@ -126,11 +129,13 @@ WIP
 
 ## Problèmes connus
 - le modèle de données n'est pas optimal, certains champs sont en doublons et/ou demandent de l'analyse pour faire baisser le nombre de champs
-- pas de gestion automatique de la planification du clonage et de l'importation (i.e. il faudra le faire avec cron)
+- pas de gestion automatique de la planification du clonage et de l'importation (i.e. pour le moment il faut le faire avec cron)
+- documentation du modèle de données à créer, en donnant les références vers les documents déclaratifs DGFIP.
 
 ## Feuille de route
-- clarifier le modèle de données
+- clarifier/documenter le modèle de données
 - modèle de fichier excel en lien avec la base de données
-- client web pour l'API
+- microclient web pour l'API
 - microservice d'aggregation et de requête dans la base
-- gestion d'authentification 
+- gestion d'authentification
+- calculs des principaux ratios d'analyse financière
