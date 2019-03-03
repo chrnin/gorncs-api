@@ -56,8 +56,7 @@ Usage of ./gorncs-api:
 
 ```
 
-### Exemples
-#### Initialiser la base de données
+### Exemple
 ```
 $ go get github.com/signaux-faibles/gorncs-api
 $ ~/go/bin/gorncs-api -initdb
