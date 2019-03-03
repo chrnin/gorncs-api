@@ -29,25 +29,36 @@ Si le même chemin est configuré pour l'import, les doublons ne seront pas int�
 Avant de démarrer l'import, il faut initialiser le schéma de la base avec -initdb.
 
 ```
+$ gorncs-api -help
 Usage of ./gorncs-api:
   -DB string
     	chemin de la base sqlite3 (default "./bilan.db")
   -bind string
     	port d'écoute de l'api (default "127.0.0.1:3000")
+  -download
+    	synchroniser le dépôt RNCS dans (voir -path, -user et -password)
   -initdb
     	créer une nouvelle base sqlite
   -limit int
     	limiter l'import à n bilans
+  -password string
+    	mot de passe FTPS RNCS/inpi
   -path string
     	chemin où sont stockés les fichiers RNCS (default ".")
   -scan
     	importer les fichiers
   -siren string
     	restreint l'importation au siren
+  -user string
+    	utilisateur FTPS RNCS/inpi
   -verbose
     	afficher les informations d'importation
 
 ```
+
+### Exemples
+#### Initialiser la base de données
+WIP
 
 ## Appel de l'api
 ```

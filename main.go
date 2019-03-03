@@ -7,9 +7,8 @@ import (
 	"log"
 	"strconv"
 
-	gorncs "./lib"
-
 	"github.com/gin-contrib/cors"
+	gorncs "github.com/signaux-faibles/gorncs-api/lib"
 
 	"github.com/gin-gonic/gin"
 
