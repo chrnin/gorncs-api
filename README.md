@@ -58,8 +58,20 @@ Usage of ./gorncs-api:
 
 ### Exemples
 #### Initialiser la base de données
-WIP
-
+```
+$ go get github.com/signaux-faibles/gorncs-api
+$ ~/go/bin/gorncs-api -initdb
+2019/03/03 11:46:18 initialisation de la base de données Sqlite pour gorncs: ./bilan.db
+2019/03/03 11:46:18 creation de la table bilan (858 champs): ok
+2019/03/03 11:46:18 creation index: ok
+$ mkdir inpi
+$ ~/go/bin/gorncs-api -download -user secretUser -password secretPassword -path inpi
+2019/03/03 11:49:43 ftp://opendata-rncs.inpi.fr/public/Bilans_Donnees_Saisies/parcours du dossier 
+[...]
+$ ~/go/bin/gorncs-api -scan -path inpi -limit 1000
+2019/03/03 11:52:23 gorncs - analyse de l'arborescence INPI dans inpi
+2019/03/03 11:52:23 Bilans importés: 1000
+```
 ## Appel de l'api
 ```
 $ http :3000/bilan/012345678
