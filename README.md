@@ -12,9 +12,12 @@ gorncs-api dépend de:
 - [Gin Web Framework](http://github.com/gin-gonic/gin)
 - [gorncs](http://github.com/chrnin/gorncs)
 - [go-sqlite3](http://github.com/mattn/go-sqlite3)
+- [go-curl](github.com/andelf/go-curl)
+- [libcurl](https://curl.haxx.se/libcurl/)
 
 ## Installer gorncs-api
-`go get github.com/signaux-faibles/gorncs-api`
+- Installer libcurl4-openssl-dev
+- `go get github.com/signaux-faibles/gorncs-api`
 
 ## Utilisation 
 Lancé sans argument, gorncs-api ouvre un point d'appel sur 127.0.0.1:3000.  

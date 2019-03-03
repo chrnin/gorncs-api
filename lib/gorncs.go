@@ -4,9 +4,9 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"time"
 )
@@ -120,16 +120,20 @@ func deepUnzip(zipFileReader sourceFile) chan sourceFile {
 // BilanWorker produit tous les bilans contenus dans une arborescence
 // l'exploration de l'arborescence se fait avec une profondeur arbitraire et traite également les zip imbriqués
 func BilanWorker(basePath string) chan Bilan {
+	channel := make(chan Bilan)
+
 	files, err := ioutil.ReadDir(basePath)
 	if err != nil {
-		fmt.Println(err)
+		log.Print(basePath + ": probleme d'accès, passe")
+		close(channel)
+		return channel
 	}
-	channel := make(chan Bilan, 5)
+
 	go func() {
 		for _, file := range files {
 			if file.IsDir() {
-				channel := BilanWorker(basePath + "/" + file.Name())
-				for bilan := range channel {
+				childrenChannel := BilanWorker(basePath + "/" + file.Name())
+				for bilan := range childrenChannel {
 					channel <- bilan
 				}
 			} else {
