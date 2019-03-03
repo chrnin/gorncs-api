@@ -2,8 +2,13 @@
 
 API pour le Registre National du Commerce et des Sociétés
 
-- permet la publication des bilans et comptes de résultat au format JSON
-- permet l'importation du dépot de fichiers RNCS de l'INPI
+L'exploitation des bilans du RNCS nécessite que vous obteniez une license auprès de l'INPI
+Pour plus d'information: https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs
+
+## fonctionnalités
+- clonage et importation du dépot de fichiers RNCS de l'INPI
+- stockage des bilans sous sqlite (exploitable sous Excel par ODBC)
+- distribution des bilans et comptes de résultat dans un microservice REST/JSON
 
 ## Dépendances
 
@@ -85,3 +90,14 @@ Transfer-Encoding: chunked
         "actif_autres_creances_net": xxxxx,
         ...
 ```
+
+## Problèmes connus
+- le modèle de données n'est pas optimal, certains champs sont en doublons et/ou demandent de l'analyse pour faire baisser le nombre de champs
+- pas de gestion automatique de la planification du clonage et de l'importation (i.e. il faudra le faire avec cron)
+
+## Feuille de route
+- clarifier le modèle de données
+- modèle de fichier excel en lien avec la base de données
+- client web pour l'API
+- microservice d'aggregation et de requête dans la base
+- gestion d'authentification 
