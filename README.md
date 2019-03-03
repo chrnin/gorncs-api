@@ -5,6 +5,7 @@ API pour le Registre National du Commerce et des Sociétés
 L'exploitation des bilans du RNCS nécessite que vous obteniez une license auprès de l'INPI
 Pour plus d'information: https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs
 
+Les accès au serveur FTPS ainsi que les conditions de cette accès seront explicités dans les documents de retour.  
 ## fonctionnalités
 - clonage et importation du dépot de fichiers RNCS de l'INPI
 - stockage des bilans sous sqlite (exploitable sous Excel par ODBC)
@@ -24,15 +25,7 @@ gorncs-api dépend de:
 - Installer libcurl4-openssl-dev
 - `go get github.com/signaux-faibles/gorncs-api`
 
-## Utilisation 
-Lancé sans argument, gorncs-api ouvre un point d'appel sur 127.0.0.1:3000.  
-
-Afin de peupler la base de données, il faut cloner le dépot [RNCS de l'INPI](https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs).
-
-Si le même chemin est configuré pour l'import, les doublons ne seront pas intégrés, il est donc possible de lancer plusieurs fois la même arborescence.
-
-Avant de démarrer l'import, il faut initialiser le schéma de la base avec -initdb.
-
+## Usage
 ```
 $ gorncs-api -help
 Usage of ./gorncs-api:
@@ -61,22 +54,59 @@ Usage of ./gorncs-api:
 
 ```
 
-### Exemple
+### Première synchronisation
+Pour une première utilisation, il faut initialiser le schéma dans une nouvelle base de données:
 ```
 $ go get github.com/signaux-faibles/gorncs-api
 $ ~/go/bin/gorncs-api -initdb
 2019/03/03 11:46:18 initialisation de la base de données Sqlite pour gorncs: ./bilan.db
 2019/03/03 11:46:18 creation de la table bilan (858 champs): ok
 2019/03/03 11:46:18 creation index: ok
-$ mkdir inpi
-$ ~/go/bin/gorncs-api -download -user secretUser -password secretPassword -path inpi
+```
+Il faut également prévoir un répertoire vide (le créer au besoin) pour stocker le mirroir du FTPS de l'INPI.
+
+```
+$ mkdir /foo/inpi
+$ ~/go/bin/gorncs-api -download -user secretUser -password secretPassword -path /foo/inpi
 2019/03/03 11:49:43 ftp://opendata-rncs.inpi.fr/public/Bilans_Donnees_Saisies/parcours du dossier 
 [...]
-$ ~/go/bin/gorncs-api -scan -path inpi -limit 1000
-2019/03/03 11:52:23 gorncs - analyse de l'arborescence INPI dans inpi
-2019/03/03 11:52:23 Bilans importés: 1000
 ```
-## Appel de l'api
+
+Une fois la première synchronisation effectuée (dans la limite du quota fixé par la license INPI), il faut scanner l'arborescence pour en extraire les bilans.
+```
+$ ~/go/bin/gorncs-api -scan -path /foo/inpi
+2019/03/03 11:52:23 gorncs - analyse de l'arborescence INPI dans inpi
+2019/03/03 11:52:23 Bilans importés: 143512
+```
+
+### Synchronisation journalière
+Une fois le dépot initialisé et la base de données en place, il est possible de renouveler l'opération pour récupérer les fichiers encore non synchronisés.  
+L'INPI a fixé un quota de téléchargement de 1Go/jour, il faut donc s'attendre à plusieurs jours de téléchargement important au départ.  
+L'INPI publie les nouveaux bilans à raison d'un fichier de quelques Mo par jour, une planification à 24 heures des deux commandes suivantes permet d'obtenir les mises à jour en suivant leur rythme de publication.
+```
+$ ~/go/bin/gorncs-api -download -user secretUser -password secretPassword -path inpi
+$ ~/go/bin/gorncs-api -scan -path inpi
+```
+
+### Gestion des erreurs
+gorncs-api valide le md5 des fichiers téléchargés, en cas de différence, les fichiers sont supprimés et seront re-téléchargés à la tentative suivante.  
+
+Cette vérification survient également pour tous les fichiers à chaque synchronisation de sorte que si un fichier subit une corruption de ses données il sera supprimé et re-téléchargé durant la synchronisation.  
+
+Chaque tentative de synchronisation ne procède qu'à un seul essais de téléchargement de fichier par synchronisation pour éviter des blocages liés à une corruption venant directement du dépot inpi. Les fichiers ne correspondant pas à leur md5 ne sont pas conservés.
+
+Si une erreur de téléchargement survient lors de la synchronisation, celle-ci est immédiatement arrétée étant entendu que dans la majorité des cas il s'agit du quota en volume qui est dépassé.
+
+Si le quota de téléchargement le permet, il n'y a aucune contre-indication à lancer deux synchronisations successives.
+
+## API
+### Lancement
+```
+~/go/bin/gorncs-api 
+gorncs-api écoute 127.0.0.1:3000
+Pour plus d'information: gorncs-api --help
+```
+### Utilisation
 ```
 $ http :3000/bilan/012345678
 HTTP/1.1 200 OK
@@ -90,6 +120,9 @@ Transfer-Encoding: chunked
         "actif_autres_creances_net": xxxxx,
         ...
 ```
+
+### Modèle de données
+WIP
 
 ## Problèmes connus
 - le modèle de données n'est pas optimal, certains champs sont en doublons et/ou demandent de l'analyse pour faire baisser le nombre de champs
