@@ -59,7 +59,6 @@ Usage of ./gorncs-api:
 ### Première synchronisation
 Pour une première utilisation, il faut initialiser le schéma dans une nouvelle base de données:
 ```
-$ go get github.com/signaux-faibles/gorncs-api
 $ ~/go/bin/gorncs-api -initdb
 2019/03/03 11:46:18 initialisation de la base de données Sqlite pour gorncs: ./bilan.db
 2019/03/03 11:46:18 creation de la table bilan (858 champs): ok
