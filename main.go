@@ -50,11 +50,14 @@ func main() {
 	} else if initdb {
 		initDB()
 	} else if download {
-		gorncs.DownloadFolder(
+		err := gorncs.DownloadFolder(
 			"ftp://opendata-rncs.inpi.fr/public/Bilans_Donnees_Saisies/",
 			user,
 			password,
 			path)
+		if err != nil {
+			log.Print("Interruption du téléchargement: " + err.Error())
+		}
 	} else {
 		var err error
 		database, err = sql.Open("sqlite3", db)

@@ -3,7 +3,6 @@ package gorncs
 import (
 	"crypto/md5"
 	"encoding/hex"
-	"fmt"
 	"io"
 	"log"
 	"os"
@@ -54,7 +53,7 @@ func CheckMD5(path string) (bool, error) {
 
 // DownloadFile télécharge un fichier si nécessaire et
 // essaye de vérifier le checksum md5 s'il est fourni
-func DownloadFile(url string, user string, password string, path string, size int) {
+func DownloadFile(url string, user string, password string, path string, size int) error {
 	easy := curl.EasyInit()
 	defer easy.Cleanup()
 	if _, err := os.Stat(path); err == nil {
@@ -68,6 +67,8 @@ func DownloadFile(url string, user string, password string, path string, size in
 					log.Print(url + ": MD5 erroné, fichier supprimé, nouvelle tentative")
 					os.Remove(path[:len(path)-3] + "zip")
 					os.Remove(path[:len(path)-3] + "md5")
+					os.Exit(0)
+
 					DownloadFile(url, user, password, path, size)
 				}
 			}
@@ -81,6 +82,9 @@ func DownloadFile(url string, user string, password string, path string, size in
 		handleFile := func(buf []byte, userdata interface{}) bool {
 			_, err := f.Write(buf)
 			if err != nil {
+				log.Print(path + ": echec du téléchargement")
+				os.Remove(path[:len(path)-3] + "zip")
+				os.Remove(path[:len(path)-3] + "md5")
 				return false
 			}
 			return true
@@ -93,7 +97,7 @@ func DownloadFile(url string, user string, password string, path string, size in
 		easy.Setopt(curl.OPT_WRITEFUNCTION, handleFile)
 
 		if err := easy.Perform(); err != nil {
-			fmt.Printf("ERROR: %v\n", err)
+			return err
 		}
 		f.Close()
 
@@ -111,13 +115,13 @@ func DownloadFile(url string, user string, password string, path string, size in
 
 	} else {
 		// Schrodinger: file may or may not exist. See err for details.
-		log.Print(url + ": problème d'accès au fichier -> " + err.Error())
+		log.Print(url + ": problème d'accès au fichier (" + err.Error() + ") passe")
 	}
-
+	return nil
 }
 
 // DownloadFolder liste les fichiers présents dans un répertoire du ftp
-func DownloadFolder(url string, user string, password string, path string) {
+func DownloadFolder(url string, user string, password string, path string) error {
 	log.Print(url + "parcours du dossier ")
 
 	easy := curl.EasyInit()
@@ -137,19 +141,26 @@ func DownloadFolder(url string, user string, password string, path string) {
 	easy.Setopt(curl.OPT_WRITEFUNCTION, handleData)
 
 	if err := easy.Perform(); err != nil {
-		fmt.Printf("ERROR: %v\n", err)
+		return err
 	}
 
 	for _, line := range listing {
 		if string(line[1]) == "d" {
 			os.Mkdir(path+"/"+string(line[3]), 0777)
-			DownloadFolder(url+string(line[3])+"/", user, password, path+"/"+string(line[3]))
+			err := DownloadFolder(url+string(line[3])+"/", user, password, path+"/"+string(line[3]))
+			if err != nil {
+				return err
+			}
 		} else {
 			size, err := strconv.Atoi(string(line[2]))
 			if err != nil {
-				return
+				return err
 			}
-			DownloadFile(url+string(line[3]), user, password, path+"/"+string(line[3]), size)
+			err = DownloadFile(url+string(line[3]), user, password, path+"/"+string(line[3]), size)
+			if err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
