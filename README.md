@@ -93,9 +93,10 @@ $ ~/go/bin/gorncs-api -scan -path /foo/inpi
 gorncs-api valide le md5 des fichiers téléchargés, en cas de différence, les fichiers sont supprimés et seront re-téléchargés à la tentative suivante.  
 
 Cette vérification survient également pour tous les fichiers à chaque synchronisation de sorte que si un fichier subit une corruption de ses données il sera supprimé et re-téléchargé durant la synchronisation.  
-Chaque tentative de synchronisation ne procède qu'à un seul essais de téléchargement de fichier par synchronisation pour éviter des blocages liés à une corruption venant directement du dépot inpi. Les fichiers ne correspondant pas à leur md5 ne sont pas conservés.
 
-Si une erreur de téléchargement survient lors de la synchronisation, celle-ci est immédiatement arrétée étant entendu que dans la majorité des cas il s'agit du quota en volume qui est dépassé.
+Chaque tentative de synchronisation ne procède qu'à un seul essais de téléchargement de fichier pour éviter des blocages liés à une corruption venant directement du dépot inpi. Les fichiers ne correspondant pas à leur md5 ne sont pas conservés.
+
+Si une erreur de téléchargement survient lors de la synchronisation, celle-ci est immédiatement arrêtée étant entendu que dans la majorité des cas il s'agit du quota qui est atteint.
 
 Si le quota de téléchargement le permet, il n'y a aucune contre-indication à lancer deux synchronisations successives.
 
