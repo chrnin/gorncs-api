@@ -1,5 +1,7 @@
 # gorncs-api 
 
+**Dépot obsolète: voir https://github.com/signaux-faibles/gorncs-api**
+
 API pour le Registre National du Commerce et des Sociétés
 
 Permet la consultation des bilans et comptes de résultat au format JSON
