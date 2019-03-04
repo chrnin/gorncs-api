@@ -115,7 +115,7 @@ type Bilan struct {
 // Postes liste des postes extrats de la variable Kb
 var Postes = getPostes()
 
-// Détail de schéma des postes de la liasse
+// PostesDetail Détail de schéma des postes de la liasse
 var PostesDetail = getPostesDetail()
 
 // getPostes retourne la liste des postes extraits de la variable Kb
