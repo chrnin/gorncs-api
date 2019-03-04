@@ -52,6 +52,7 @@ func ParseBilan(bilanByte []byte, nomFichier string) (Bilan, error) {
 	bilan.CodeOrigineDevise = v.Bilan.Identite.CodeOrigineDevise
 	bilan.CodeConfidentialite = v.Bilan.Identite.CodeConfidentialite
 	bilan.Denomination = v.Bilan.Identite.Denomination
+	bilan.InfoTraitement = v.Bilan.Identite.InfoTraitement
 	bilan.XMLSource = string(bilanByte)
 	bilan.Lignes = make(map[string]*int)
 	for _, page := range v.Bilan.Detail.Page {

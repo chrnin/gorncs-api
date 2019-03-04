@@ -43,6 +43,7 @@ type XMLIdentite struct {
 	CodeOrigineDevise            string   `xml:"code_origine_devise"`
 	CodeConfidentialite          string   `xml:"code_confidentialite"`
 	Denomination                 string   `xml:"denomination"`
+	InfoTraitement               string   `xml:"info_traitement"`
 	Adresse                      string   `xml:"adresse"`
 }
 
@@ -107,11 +108,14 @@ type Bilan struct {
 	XMLSource                    string          `json:"XMLSource" bson:"XMLSource"`
 	NomFichier                   string          `json:"nomFichier" bson:"nomFichier"`
 	Report                       []string        `json:"RapportConversion"`
+	InfoTraitement               string          `json:"InfoTraitement"`
 	Lignes                       map[string]*int `json:"lignes" bson:"lignes"`
 }
 
 // Postes liste des postes extrats de la variable Kb
 var Postes = getPostes()
+
+// Détail de schéma des postes de la liasse
 var PostesDetail = getPostesDetail()
 
 // getPostes retourne la liste des postes extraits de la variable Kb
@@ -243,6 +247,7 @@ func GetCreateTableQuery() string {
 		code_confidentialite text,
 		denomination text,
 		adresse text,
+		info_traitement text,
 		rapport_integration text`
 	for _, p := range Postes {
 		createTableQuery = createTableQuery + `,
@@ -265,7 +270,7 @@ func GetQueryString() string {
 		num_depot, num_gestion, code_activite, date_cloture_exercice_precedent,
 		duree_exercice, duree_exercice_precedent,	date_depot, code_motif,
 		code_type_bilan, code_devise, code_origine_devise, code_confidentialite, 
-		denomination, adresse, rapport_integration, ` + strings.Join(Postes, ", ") +
+		denomination, adresse, info_traitement, rapport_integration, ` + strings.Join(Postes, ", ") +
 		`) values (` + strings.Join(params, ", ") + `);`
 
 	return query
@@ -292,6 +297,7 @@ func (bilan Bilan) ToQueryParams() []interface{} {
 	params = append(params, toNullString(bilan.CodeConfidentialite))
 	params = append(params, toNullString(bilan.Denomination))
 	params = append(params, toNullString(bilan.Adresse))
+	params = append(params, toNullString(bilan.InfoTraitement))
 	rapportIntegration, _ := json.Marshal(bilan.Report)
 	if string(rapportIntegration) == "null" {
 		params = append(params, toNullString(""))
