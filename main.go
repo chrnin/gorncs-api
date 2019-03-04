@@ -7,8 +7,9 @@ import (
 	"log"
 	"strconv"
 
-	"github.com/gin-contrib/cors"
 	gorncs "github.com/signaux-faibles/gorncs-api/lib"
+
+	"github.com/gin-contrib/cors"
 
 	"github.com/gin-gonic/gin"
 
@@ -70,15 +71,27 @@ func main() {
 		r := gin.Default()
 		r.Use(cors.Default())
 		r.GET("/bilan/:siren", search)
+		r.GET("/fields/:field", fields)
 		r.GET("/fields", fields)
+		r.GET("/schema", schema)
 
 		r.Run(bind)
 	}
 }
 
+func schema(c *gin.Context) {
+	c.JSON(200, gorncs.Kb)
+}
 func fields(c *gin.Context) {
-	for _, p := range gorncs.Postes {
-		fmt.Println(p)
+	field := c.Params.ByName("field")
+	if field == "" {
+		c.JSON(200, gorncs.PostesDetail)
+	} else {
+		if detail, ok := gorncs.PostesDetail[field]; ok {
+			c.JSON(200, detail)
+		} else {
+			c.JSON(404, "champ non référencé")
+		}
 	}
 }
 

@@ -102,31 +102,122 @@ Si le quota de téléchargement le permet, il n'y a aucune contre-indication à 
 
 ## API
 ### Lancement
+Le plus simplement du monde: 
 ```
 ~/go/bin/gorncs-api 
 gorncs-api écoute 127.0.0.1:3000
 Pour plus d'information: gorncs-api --help
 ```
-### Utilisation
-Ce microservice prend un numéro siren en paramètre dans l'URL et retourne l'ensemble des bilans dans un tableau JSON où chaque élément est un objet dont les clés font référence aux notions que l'on retrouve sur les formulaires de déclaration fiscale de la DGFIP. (2030-sd, 2031-sd etc.)
+### Points d'appel (voir également modèle de données)
+#### GET /bilan/:siren
+retourne un tableau des bilans connus pour un siren
+#### GET /fields/:field
+retourne les informations sur un champ. 
+#### GET /fields
+retourne les informations sur tous les champs.
+#### GET /schema
+retourne le schéma paramétré dans gorncs-api
 
-```
-$ http :3000/bilan/012345678
+### Modèle de données
+Le format des bilans est un tableau d'objets comportant les informations des bilans.  
+#### Exemple
+```JSON
+$ http :3000/bilan/015551278
 HTTP/1.1 200 OK
 Content-Type: application/json; charset=utf-8
-Date: Wed, 27 Feb 2019 14:49:07 GMT
+Date: Mon, 04 Mar 2019 07:44:56 GMT
 Transfer-Encoding: chunked
 
 [
     {
-        "actif_autres_creances_brut": xxxxx,
-        "actif_autres_creances_net": xxxxx,
+        "actif_autres_creances_brut": 170897,
+        "actif_autres_creances_net": 170897,
+        "actif_autres_creances_net_n1": 91023,
+        "actif_autres_immobilisations_corporelles_amortissement": 527712,
+        "actif_autres_immobilisations_corporelles_brut": 576353,
+        "actif_autres_immobilisations_corporelles_net": 48641,
         ...
+    }
+]
 ```
 
-### Modèle de données
-WIP
+#### Champs permanents
+- id integer
+- nom_fichier text
+- siren text
+- date_cloture_exercice datetime
+- code_greffe text
+- num_depot text
+- num_gestion text
+- code_activite text
+- date_cloture_exercice_precedent datetime
+- duree_exercice text
+- duree_exercice_precedent text
+- date_depot datetime
+- code_motif text
+- code_type_bilan text
+- code_devise text
+- code_origine_devise text
+- code_confidentialite text
+- denomination text
+- adresse text
+- rapport_integration: permet de savoir si des champs ont été ignorés pendant l'intégration du fichier
 
+#### Information sur les champs comptables
+La grande quantité de champs disponibles dans le schéma m'interdit d'en mettre le détail exhaustif dans cette documentation, toutefois, il est possible d'obtenir des informations sur les champs avec le service /fields de l'API:
+```JSON
+$ http :3000/fields/actif_total_I_net
+HTTP/1.1 200 OK
+Content-Length: 115
+Content-Type: application/json; charset=utf-8
+Date: Mon, 04 Mar 2019 07:54:20 GMT
+
+[
+    {
+        "bilan": "complet",
+        "code": "BJ",
+        "colonne": 3,
+        "page": "01"
+    },
+    {
+        "bilan": "consolide",
+        "code": "BJ",
+        "colonne": 3,
+        "page": "01"
+    }
+]
+
+```
+
+Il est ainsi possible de connaître pour chaque champ la position d'origine de l'information issue des formulaires de déclaration fiscale (i.e. https://www.impots.gouv.fr/portail/formulaire/2033-sd/bilan-simplifie).  
+Un appel à /field sans paramètre retournera le descriptif de tous les champs.
+
+#### Schéma
+Il est possible d'obtenir le descriptif du schéma exploité par gorncs-api pour produire la liste des champs avec le service /schema  
+Le retour 
+```JSON
+$ http :3000/schema
+HTTP/1.1 200 OK
+Content-Type: application/json; charset=utf-8
+Date: Mon, 04 Mar 2019 08:00:15 GMT
+Transfer-Encoding: chunked
+
+{
+    "010": {                                                                  | code poste
+        "S": [                                                                | code bilan
+            "01",                                                             | page
+            "actif",                                                          | catégorie
+            "immobilisations_incorporelles_fond_commercial_brut",             | rubriques
+            "immobilisations_incorporelles_fond_commercial_amortissement",    |
+            "immobilisations_incorporelles_fond_commercial_net",              |
+            "immobilisations_incorporelles_fond_commercial_net_n1"            |
+        ]
+    },
+    "014": {
+        ...
+    }
+}
+```
 ## Problèmes connus
 - le modèle de données n'est pas optimal, certains champs sont en doublons et/ou demandent de l'analyse pour faire baisser le nombre de champs
 - pas de gestion automatique de la planification du clonage et de l'importation (i.e. pour le moment il faut le faire avec cron)
