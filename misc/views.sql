@@ -886,8 +886,8 @@ where id = (
     and bo.siren = bi.siren
   order by substr(nom_fichier, instr( nom_fichier, '>') + 2) desc
   limit 1
-)
-/* bilan_uniq(
+);
+
 CREATE VIEW ratios as
 select 
 nom_fichier,
