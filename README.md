@@ -222,6 +222,7 @@ Transfer-Encoding: chunked
 - le modèle de données n'est pas optimal, certains champs sont en doublons et/ou demandent de l'analyse pour faire baisser le nombre de champs
 - pas de gestion automatique de la planification du clonage et de l'importation (i.e. pour le moment il faut le faire avec cron)
 - documentation du modèle de données à créer, en donnant les références vers les documents déclaratifs DGFIP.
+- pas de tests
 
 ## Feuille de route
 - clarifier/documenter le modèle de données
