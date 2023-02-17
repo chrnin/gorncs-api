@@ -2,7 +2,7 @@
 
 Outil de synchronisation et d'APIfication dédié au Registre National du Commerce et des Sociétés
 
-L'exploitation des bilans du RNCS nécessite que vous obteniez une license auprès de l'INPI
+L'exploitation des bilans du RNCS nécessite que vous obteniez une licence auprès de l'INPI
 
 Pour plus d'informations: https://data.inpi.fr/content/editorial/Serveur_ftp_entreprises
 
