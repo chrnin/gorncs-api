@@ -3,10 +3,9 @@
 Outil de synchronisation et d'APIfication dédié au Registre National du Commerce et des Sociétés
 
 L'exploitation des bilans du RNCS nécessite que vous obteniez une license auprès de l'INPI
-Pour plus d'information: https://www.inpi.fr/fr/licence-registre-national-du-commerce-et-des-societes-rncs
+Pour plus d'information: https://data.inpi.fr/content/editorial/Serveur_ftp_entreprises
 
-Les accès au serveur FTPS ainsi que les conditions de cette accès seront explicités dans les documents de retour.  
-## fonctionnalités
+## Fonctionnalités
 - clonage et importation du dépot de fichiers RNCS de l'INPI
 - stockage des bilans sous sqlite (exploitable sous Excel par ODBC)
 - distribution des bilans et comptes de résultat dans un microservice REST/JSON
