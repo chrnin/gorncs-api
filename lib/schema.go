@@ -43,6 +43,7 @@ type XMLIdentite struct {
 	CodeOrigineDevise            string   `xml:"code_origine_devise"`
 	CodeConfidentialite          string   `xml:"code_confidentialite"`
 	Denomination                 string   `xml:"denomination"`
+	InfoTraitement               string   `xml:"info_traitement"`
 	Adresse                      string   `xml:"adresse"`
 }
 
@@ -84,9 +85,8 @@ type Values struct {
 	M4 *int `json:"valeur_m4"`
 }
 
-// Ligne de bilan
-
-// Bilan = Lignes + Descriptif
+// Bilan objet restructurant les données d'un bilan au format XML rncs en format maison.
+// Les lignes sont une map identifiées par les postes fournis dans la variable Kb
 type Bilan struct {
 	Siren                        string          `json:"siren" bson:"siren"`
 	DateClotureExercice          time.Time       `json:"dateClotureExercice" bson:"dateClotureExercice"`
@@ -108,12 +108,17 @@ type Bilan struct {
 	XMLSource                    string          `json:"XMLSource" bson:"XMLSource"`
 	NomFichier                   string          `json:"nomFichier" bson:"nomFichier"`
 	Report                       []string        `json:"RapportConversion"`
+	InfoTraitement               string          `json:"InfoTraitement"`
 	Lignes                       map[string]*int `json:"lignes" bson:"lignes"`
 }
 
-// Postes computes field sorted list from Kb
+// Postes liste des postes extrats de la variable Kb
 var Postes = getPostes()
 
+// PostesDetail Détail de schéma des postes de la liasse
+var PostesDetail = getPostesDetail()
+
+// getPostes retourne la liste des postes extraits de la variable Kb
 func getPostes() []string {
 	var dbSchema = make(map[string]struct{})
 	for codePoste := range Kb {
@@ -142,6 +147,72 @@ func getPostes() []string {
 	return postes
 }
 
+// Schema décrit les emplacements où peut se trouver un champ
+type Schema struct {
+	Page    string `json:"page"`
+	Code    string `json:"code"`
+	Bilan   string `json:"bilan"`
+	Colonne int    `json:"colonne"`
+}
+
+var bilans = map[string]string{
+	"S": "simplifie",
+	"C": "complet",
+	"K": "consolide",
+	"B": "banque",
+	"A": "assurance",
+}
+
+// getPostesDetail Produit un catalogue des champs avec les informations de schéma
+func getPostesDetail() map[string][]Schema {
+	postesDetail := make(map[string][]Schema)
+	for codePoste := range Kb {
+		for codeBilan := range Kb[codePoste] {
+			key := Key{CodeBilan: codeBilan, CodePoste: codePoste}
+			schema, _ := GetSchema(key)
+			if schema[0] != "" {
+				s := Schema{
+					Page:    Kb[codePoste][codeBilan][0],
+					Code:    codePoste,
+					Bilan:   bilans[codeBilan],
+					Colonne: 1,
+				}
+				postesDetail[schema[0]] = append(postesDetail[schema[0]], s)
+			}
+			if schema[1] != "" {
+				s := Schema{
+					Page:    Kb[codePoste][codeBilan][0],
+					Code:    codePoste,
+					Bilan:   bilans[codeBilan],
+					Colonne: 2,
+				}
+				postesDetail[schema[1]] = append(postesDetail[schema[1]], s)
+			}
+			if schema[2] != "" {
+				s := Schema{
+					Page:    Kb[codePoste][codeBilan][0],
+					Code:    codePoste,
+					Bilan:   bilans[codeBilan],
+					Colonne: 3,
+				}
+				postesDetail[schema[2]] = append(postesDetail[schema[2]], s)
+			}
+			if schema[3] != "" {
+				s := Schema{
+					Page:    Kb[codePoste][codeBilan][0],
+					Code:    codePoste,
+					Bilan:   bilans[codeBilan],
+					Colonne: 4,
+				}
+				postesDetail[schema[3]] = append(postesDetail[schema[3]], s)
+			}
+		}
+	}
+	return postesDetail
+}
+
+// toNullString produit une variable sql.NullString à partir d'une string.
+// "" devient NULL.
 func toNullString(s string) sql.NullString {
 	if s != "" {
 		return sql.NullString{
@@ -176,6 +247,7 @@ func GetCreateTableQuery() string {
 		code_confidentialite text,
 		denomination text,
 		adresse text,
+		info_traitement text,
 		rapport_integration text`
 	for _, p := range Postes {
 		createTableQuery = createTableQuery + `,
@@ -198,7 +270,7 @@ func GetQueryString() string {
 		num_depot, num_gestion, code_activite, date_cloture_exercice_precedent,
 		duree_exercice, duree_exercice_precedent,	date_depot, code_motif,
 		code_type_bilan, code_devise, code_origine_devise, code_confidentialite, 
-		denomination, adresse, rapport_integration, ` + strings.Join(Postes, ", ") +
+		denomination, adresse, info_traitement, rapport_integration, ` + strings.Join(Postes, ", ") +
 		`) values (` + strings.Join(params, ", ") + `);`
 
 	return query
@@ -225,6 +297,7 @@ func (bilan Bilan) ToQueryParams() []interface{} {
 	params = append(params, toNullString(bilan.CodeConfidentialite))
 	params = append(params, toNullString(bilan.Denomination))
 	params = append(params, toNullString(bilan.Adresse))
+	params = append(params, toNullString(bilan.InfoTraitement))
 	rapportIntegration, _ := json.Marshal(bilan.Report)
 	if string(rapportIntegration) == "null" {
 		params = append(params, toNullString(""))
@@ -263,6 +336,8 @@ func GetSchema(key Key) ([4]string, error) {
 			}
 			return schema, nil
 		}
+		// certains bilans ont un type complet mais des lignes issues du type simplifié
+		// ci-dessous workaround pour prendre en compte ces lignes
 		s := poste["S"]
 		var schema [4]string
 		if s[2] != "" {
@@ -279,8 +354,8 @@ func GetSchema(key Key) ([4]string, error) {
 		}
 		return schema, nil
 	}
-	return [4]string{"", "", "", ""}, errors.New("schema introuvable pour le type de bilan")
 
+	return [4]string{"", "", "", ""}, errors.New("schema introuvable pour le type de bilan")
 }
 
 // KB type qui contient le schema cible
@@ -298,7 +373,8 @@ func GetSchema(key Key) ([4]string, error) {
 // }
 type KB map[string]map[string][6]string
 
-// Kb schema cible
+// Kb schema cible. Les postes du bilan sont calculés à partir de cette variable.
+// le champ M3 d'une ligne AA d'un bilan de type complet deviendra actif_capital_souscrit_non_appele_net
 var Kb = KB{
 	"AA": {
 		"C": {
@@ -1844,16 +1920,16 @@ var Kb = KB{
 		"C": {
 			"03",
 			"compte_de_resultat",
-			"ventes_de_marchandises",
-			"ventes_de_marchandises_n1",
+			"ventes_de_marchandises_france",
+			"ventes_de_marchandises_export",
 			"ventes_de_marchandises_total",
 			"ventes_de_marchandises_total_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
-			"ventes_de_marchandises",
-			"ventes_de_marchandises_n1",
+			"ventes_de_marchandises_france",
+			"ventes_de_marchandises_export",
 			"ventes_de_marchandises_total",
 			"ventes_de_marchandises_total_n1",
 		},
@@ -1862,16 +1938,16 @@ var Kb = KB{
 		"C": {
 			"03",
 			"compte_de_resultat",
-			"production_vendue_biens",
-			"production_vendue_biens_n1",
+			"production_vendue_biens_france",
+			"production_vendue_biens_export",
 			"production_vendue_biens_total",
 			"production_vendue_biens_total_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
-			"production_vendue_biens",
-			"production_vendue_biens_n1",
+			"production_vendue_biens_france",
+			"production_vendue_biens_export",
 			"production_vendue_biens_total",
 			"production_vendue_biens_total_n1",
 		},
@@ -1880,16 +1956,16 @@ var Kb = KB{
 		"C": {
 			"03",
 			"compte_de_resultat",
-			"production_vendue_services",
-			"production_vendue_services_n1",
+			"production_vendue_services_france",
+			"production_vendue_services_export",
 			"production_vendue_services_total",
 			"production_vendue_services_total_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
-			"production_vendue_services",
-			"production_vendue_services_n1",
+			"production_vendue_services_france",
+			"production_vendue_services_export",
 			"production_vendue_services_total",
 			"production_vendue_services_total_n1",
 		},
@@ -1898,16 +1974,16 @@ var Kb = KB{
 		"C": {
 			"03",
 			"compte_de_resultat",
-			"chiffres_d_affaires_nets",
-			"chiffres_d_affaires_nets_n1",
+			"chiffres_d_affaires_nets_france",
+			"chiffres_d_affaires_nets_export",
 			"chiffres_d_affaires_nets_total",
 			"chiffres_d_affaires_nets_total_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
-			"chiffres_d_affaires_nets",
-			"chiffres_d_affaires_nets_n1",
+			"chiffres_d_affaires_nets_france",
+			"chiffres_d_affaires_nets_export",
 			"chiffres_d_affaires_nets_total",
 			"chiffres_d_affaires_nets_total_n1",
 		},
@@ -1918,16 +1994,16 @@ var Kb = KB{
 			"compte_de_resultat",
 			"",
 			"",
-			"production_stockee_total",
-			"production_stockee_total_n1",
+			"production_stockee",
+			"production_stockee_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
 			"",
 			"",
-			"production_stockee_total",
-			"production_stockee_total_n1",
+			"production_stockee",
+			"production_stockee_n1",
 		},
 	},
 	"FN": {
@@ -2152,16 +2228,16 @@ var Kb = KB{
 			"compte_de_resultat",
 			"",
 			"",
-			"charges_sociales_total",
-			"charges_sociales_total_total_n1",
+			"charges_sociales",
+			"charges_sociales_n1",
 		},
 		"K": {
 			"03",
 			"compte_de_resultat",
 			"",
 			"",
-			"charges_sociales_total",
-			"charges_sociales_total_total_n1",
+			"charges_sociales",
+			"charges_sociales_n1",
 		},
 	},
 	"GA": {
@@ -4395,7 +4471,7 @@ var Kb = KB{
 			"01",
 			"passif",
 			"",
-			"autres_dettes_dont_comptes_courant_d_associes_de_l_exercice_N_amortissement",
+			"comptes_courant_d_associes_de_l_exercice_de_autres_dettes_dont",
 			"",
 			"",
 		},
@@ -5004,7 +5080,7 @@ var Kb = KB{
 		"S": {
 			"03",
 			"immobilisations",
-			"total_immobilisations_valeur_brute",
+			"total_valeur_brute",
 			"",
 			"",
 			"",
@@ -5014,7 +5090,7 @@ var Kb = KB{
 		"S": {
 			"03",
 			"immobilisations",
-			"total_immobilisations_augmentations",
+			"total_augmentations",
 			"",
 			"",
 			"",
@@ -5024,7 +5100,7 @@ var Kb = KB{
 		"S": {
 			"03",
 			"immobilisations",
-			"total_immobilisations_diminutions",
+			"total_diminutions",
 			"",
 			"",
 			"",
@@ -5054,7 +5130,7 @@ var Kb = KB{
 		"S": {
 			"03",
 			"immobilisations",
-			"total_immobilisations_amortissement_plusvalues_moinsvalues_long_terme_19_pourcent",
+			"total_amortissement_plusvalues_moinsvalues_long_terme_19_pourcent",
 			"",
 			"",
 			"",
@@ -5064,7 +5140,7 @@ var Kb = KB{
 		"S": {
 			"03",
 			"immobilisations",
-			"total_immobilisations_amortissement_plusvalues_moinsvalues_court_terme",
+			"total_amortissement_plusvalues_moinsvalues_court_terme",
 			"",
 			"",
 			"",
@@ -5074,7 +5150,7 @@ var Kb = KB{
 		"S": {
 			"03",
 			"immobilisations",
-			"total_immobilisations_amortissement_plusvalues_moinsvalues_long_terme_15_ou_12_8_pourcent",
+			"total_amortissement_plusvalues_moinsvalues_long_terme_15_ou_12_8_pourcent",
 			"",
 			"",
 			"",
@@ -5084,7 +5160,7 @@ var Kb = KB{
 		"S": {
 			"03",
 			"immobilisations",
-			"total_immobilisations_amortissement_plusvalues_moinsvalues_long_terme_0_pourcent",
+			"total_amortissement_plusvalues_moinsvalues_long_terme_0_pourcent",
 			"",
 			"",
 			"",
@@ -5092,7 +5168,7 @@ var Kb = KB{
 	},
 	// "374": {
 	// 	"S": {
-	// 		"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+	// 		"releve_des_provisions_amortissements_derogatoires",
 	// 		"04",
 	// 		"divers_montant_de_la_tva_collectee",
 	// 		"",
@@ -5102,7 +5178,7 @@ var Kb = KB{
 	// },
 	// "378": {
 	// 	"S": {
-	// 		"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+	// 		"releve_des_provisions_amortissements_derogatoires",
 	// 		"04",
 	// 		"divers_montant_de_la_tva_deductible_sur_biens_et_services_sauf_immobilisations",
 	// 		"",
@@ -5113,7 +5189,7 @@ var Kb = KB{
 	"602": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"augmentations_provisions_reglementees_amortissements_derogatoires",
 			"",
 			"",
@@ -5123,8 +5199,8 @@ var Kb = KB{
 	"603": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
-			"augmentations_provisions_reglementees_dont_majorations_exceptionnelles_de",
+			"releve_des_provisions_amortissements_derogatoires",
+			"majorations_exceptionnelles_de_augmentations_provisions_reglementees",
 			"",
 			"",
 			"",
@@ -5133,7 +5209,7 @@ var Kb = KB{
 	"604": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_provisions_reglementees_amortissements_derogatoires",
 			"",
 			"",
@@ -5143,7 +5219,7 @@ var Kb = KB{
 	"605": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_provisions_reglementees_dont_majorations_exceptionnelles_de_30pourcents",
 			"",
 			"",
@@ -5153,7 +5229,7 @@ var Kb = KB{
 	"612": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"augmentations_provisions_reglementees_autres_provisions_reglementees",
 			"",
 			"",
@@ -5163,7 +5239,7 @@ var Kb = KB{
 	"614": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_provisions_reglementees_autres_provisions_reglementees",
 			"",
 			"",
@@ -5173,7 +5249,7 @@ var Kb = KB{
 	"622": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"augmentations_provisions_pour_risques_et_charges",
 			"",
 			"",
@@ -5183,7 +5259,7 @@ var Kb = KB{
 	"624": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_provisions_pour_risques_et_charges",
 			"",
 			"",
@@ -5193,7 +5269,7 @@ var Kb = KB{
 	"632": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"augmentations_provisions_pour_depreciation_sur_immobilisations",
 			"",
 			"",
@@ -5203,7 +5279,7 @@ var Kb = KB{
 	"634": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_provisions_pour_depreciation_sur_immobilisations",
 			"",
 			"",
@@ -5213,7 +5289,7 @@ var Kb = KB{
 	"642": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"augmentations_provisions_pour_depreciation_sur_stocks_et_en_cours",
 			"",
 			"",
@@ -5223,7 +5299,7 @@ var Kb = KB{
 	"644": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_provisions_pour_depreciation_sur_stock_et_en_cours",
 			"",
 			"",
@@ -5233,7 +5309,7 @@ var Kb = KB{
 	"652": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"augmentations_provisions_pour_depreciation_sur_clients_et_comptes_rattaches",
 			"",
 			"",
@@ -5243,7 +5319,7 @@ var Kb = KB{
 	"654": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_provisions_pour_depreciation_sur_clients_et_comptes_rattaches",
 			"",
 			"",
@@ -5253,7 +5329,7 @@ var Kb = KB{
 	"662": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"augmentations_provisions_pour_depreciation_autres_provisions_pour_depreciation",
 			"",
 			"",
@@ -5263,7 +5339,7 @@ var Kb = KB{
 	"664": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_provisions_pour_depreciation_autres_provisions_pour_depreciation",
 			"",
 			"",
@@ -5273,7 +5349,7 @@ var Kb = KB{
 	"682": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"augmentations_total_releve_des_provisions",
 			"",
 			"",
@@ -5283,7 +5359,7 @@ var Kb = KB{
 	"684": {
 		"S": {
 			"04",
-			"releve_des_provisions_amortissements_derogatoires_deficits_reportables",
+			"releve_des_provisions_amortissements_derogatoires",
 			"diminutions_total_releve_des_provisions",
 			"",
 			"",

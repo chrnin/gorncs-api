@@ -7,7 +7,7 @@ import (
 	"log"
 	"strconv"
 
-	gorncs "./lib"
+	gorncs "github.com/signaux-faibles/gorncs-api/lib"
 
 	"github.com/gin-contrib/cors"
 
@@ -21,6 +21,9 @@ var path string
 var scanner bool
 var initdb bool
 var bind string
+var download bool
+var user string
+var password string
 var verbose bool
 var limit int
 var siren string
@@ -33,6 +36,9 @@ func init() {
 	flag.BoolVar(&scanner, "scan", false, "importer les fichiers")
 	flag.BoolVar(&initdb, "initdb", false, "créer une nouvelle base sqlite")
 	flag.BoolVar(&verbose, "verbose", false, "afficher les informations d'importation")
+	flag.BoolVar(&download, "download", false, "synchroniser le dépôt RNCS dans (voir -path, -user et -password)")
+	flag.StringVar(&user, "user", "", "utilisateur FTPS RNCS/inpi")
+	flag.StringVar(&password, "password", "", "mot de passe FTPS RNCS/inpi")
 	flag.IntVar(&limit, "limit", 0, "limiter l'import à n bilans")
 	flag.StringVar(&siren, "siren", "", "restreint l'importation au siren")
 }
@@ -43,6 +49,15 @@ func main() {
 		scan()
 	} else if initdb {
 		initDB()
+	} else if download {
+		err := gorncs.DownloadFolder(
+			"ftp://opendata-rncs.inpi.fr/public/Bilans_Donnees_Saisies/",
+			user,
+			password,
+			path)
+		if err != nil {
+			log.Print("Interruption du téléchargement: " + err.Error())
+		}
 	} else {
 		var err error
 		database, err = sql.Open("sqlite3", db)
@@ -55,10 +70,29 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 		r := gin.Default()
 		r.Use(cors.Default())
-		r.GET("/:siren", search)
+		r.GET("/bilan/:siren", search)
+		r.GET("/fields/:field", fields)
+		r.GET("/fields", fields)
+		r.GET("/schema", schema)
+
 		r.Run(bind)
 	}
+}
 
+func schema(c *gin.Context) {
+	c.JSON(200, gorncs.Kb)
+}
+func fields(c *gin.Context) {
+	field := c.Params.ByName("field")
+	if field == "" {
+		c.JSON(200, gorncs.PostesDetail)
+	} else {
+		if detail, ok := gorncs.PostesDetail[field]; ok {
+			c.JSON(200, detail)
+		} else {
+			c.JSON(404, "champ non référencé")
+		}
+	}
 }
 
 type query struct {
@@ -130,6 +164,7 @@ func initDB() {
 }
 
 func scan() {
+	log.Print("gorncs - analyse de l'arborescence INPI dans " + path)
 	database, err := sql.Open("sqlite3", db)
 	if err != nil {
 		panic(err)
@@ -156,7 +191,7 @@ func scan() {
 
 					if verbose {
 						if err.Error()[0:6] == "UNIQUE" {
-							log.Print("Bilan déjà présent " + bilan.NomFichier)
+							log.Print("bilan déjà présent " + bilan.NomFichier)
 						} else {
 							log.Print("probleme à l'insert de " + bilan.NomFichier + ": " + err.Error())
 						}
